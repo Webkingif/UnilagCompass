@@ -1,5 +1,6 @@
 import type {Metadata} from 'next';
 import './globals.css'; // Global styles
+import { InputProvider } from '@/context/InputContext';
 
 export const metadata: Metadata = {
   title: 'unilagcompass | UNILAG Campus Navigation',
@@ -10,7 +11,9 @@ export default function RootLayout({children}: {children: React.ReactNode}) {
   return (
     <html lang="en" className="h-full">
       <body className="h-full antialiased bg-slate-50 text-slate-900" suppressHydrationWarning>
-        {children}
+        <InputProvider>
+          {children}
+        </InputProvider>
       </body>
     </html>
   );
