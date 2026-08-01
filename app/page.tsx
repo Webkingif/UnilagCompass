@@ -1,12 +1,12 @@
 'use client';
-
+import { LocationType } from '../components/unimap';
 import { useState, useRef } from 'react';
 import { MapPin, Navigation, Search, ArrowUpDown } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import data from "components/data.json";
 
 // 1. DYNAMICALLY IMPORT THE MAP (Disables SSR for this component)
-const Unimap = dynamic(() => import('@/components/unimap'), { 
+const Unimap = dynamic(() => import('@/components/unimap'), {
   ssr: false,
   loading: () => <div className="h-full w-full bg-slate-200 animate-pulse flex items-center justify-center text-slate-500">Loading Map...</div>
 });
@@ -21,7 +21,7 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const { toLocation, fromLocation, setFromLocation, setToLocation } = useInputContext();
   const { map } = useMap();
-  const [distance, setDistance] = useState<number|null>(null);
+  const [distance, setDistance] = useState<number | null>(null);
 
   // NOTICE: There is NO useEffect here anymore! The map creation is safely handled in unimap.tsx.
 
@@ -31,21 +31,21 @@ export default function Home() {
     const oldfrom = fromInput.value;
     fromInput.value = toInput.value;
     toInput.value = oldfrom;
-	const fromObject = data.find(loc=>loc.name===fromInput.value);
-	const toObject = data.find(loc=> loc.name===toInput.value);
-	
-	setFromLocation(fromObject);
-	setToLocation(toObject);
-	fromInput.dispatchEvent(new Event("change",{bubbles: true}));
+    const fromObject: LocationType = data.find(loc => loc.name === fromInput.value) as LocationType;
+    const toObject: LocationType = data.find(loc => loc.name === toInput.value) as LocationType;
+
+    setFromLocation(fromObject);
+    setToLocation(toObject);
+    fromInput.dispatchEvent(new Event("change", { bubbles: true }));
   };
   const routeLayerRef = useRef<L.GeoJSON | null>(null);
   const findOptimalRoute = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSearching(true);
-    
+
     if (!map || !fromLocation || !toLocation) {
       setIsSearching(false);
-      return; 
+      return;
     }
 
     const start = [fromLocation.lat, fromLocation.lng];
@@ -63,15 +63,15 @@ export default function Home() {
       if (data.code !== "Ok") throw new Error("Route not found");
 
       const route = data.routes[0];
-      
+
       const L = (await import("leaflet")).default;
-	  if(routeLayerRef.current){
-		map.removeLayer(routeLayerRef.current);
-	  }
+      if (routeLayerRef.current) {
+        map.removeLayer(routeLayerRef.current);
+      }
       routeLayerRef.current = L.geoJSON(route.geometry, {
         style: { color: "red", weight: 6, opacity: 0.8 }
       }).addTo(map);
-	  setDistance(route.distance);
+      setDistance(route.distance);
       console.log("Distance:", route.distance / 1000, "km");
       console.log("Duration:", route.duration / 60, "minutes");
     } catch (error) {
@@ -91,7 +91,7 @@ export default function Home() {
     <div id="main-container" className="flex flex-col h-screen overflow-hidden bg-[#f8fafc] text-[#1e293b] ">
       <Header />
       <main id="main-content" className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-scroll">
-        
+
         <section id="left-pane" className="w-full md:w-1/2 p-6 md:p-12 flex flex-col justify-between bg-white border-b md:border-b-0 md:border-r border-[#e2e8f0]">
           <div className="max-w-[420px] w-full mx-auto my-auto space-y-6">
             <div>
@@ -161,18 +161,18 @@ export default function Home() {
                 </button>
               </div>
             </form>
-			<div className="flex">
-			{ distance && 
-						<div
-				className="ml-auto"
-			>Distance: {distance}m</div>}
-			</div>
+            <div className="flex">
+              {distance &&
+                <div
+                  className="ml-auto"
+                >Distance: {distance}m</div>}
+            </div>
 
           </div>
         </section>
 
         <section id="right-pane" className="w-full md:w-1/2 min-h-[450px] md:min-h-0 bg-[#f1f5f9] flex items-center justify-center relative p-4 border-t md:border-t-0 md:border-l border-[#e2e8f0]">
-          <Unimap /> 
+          <Unimap />
         </section>
       </main>
       <Footer />
