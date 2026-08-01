@@ -1,101 +1,94 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { MapPin, Navigation, Search, ArrowUpDown } from 'lucide-react';
-import Unimap from '@/components/unimap';
+import dynamic from 'next/dynamic';
+
+// 1. DYNAMICALLY IMPORT THE MAP (Disables SSR for this component)
+const Unimap = dynamic(() => import('@/components/unimap'), { 
+  ssr: false,
+  loading: () => <div className="h-full w-full bg-slate-200 animate-pulse flex items-center justify-center text-slate-500">Loading Map...</div>
+});
+
 import Header from '@/components/header';
 import Footer from '@/components/footer';
 import { useInputContext } from '@/context/InputContext';
-import L from "leaflet";
-
-//
+import { useMap } from "@/context/MapContext";
 import "leaflet/dist/leaflet.css";
-import { LatLngBoundsExpression } from "leaflet";
-import { useEffect } from "react";
-
-import icon from 'leaflet/dist/images/marker-icon.png';
-import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({ iconUrl: icon.src, shadowUrl: iconShadow.src });
-
-//
 
 export default function Home() {
-  // const { toLocation, fromLocation } = useInputContext();
   const [isSearching, setIsSearching] = useState(false);
-  const { toLocation, fromLocation } = useInputContext();
+  const { toLocation, fromLocation, setFromLocation, setToLocation } = useInputContext();
+  const { map } = useMap();
+  const [distance, setDistance] = useState<number|null>(null);
 
-  useEffect(() => {
-
-},[])
-
-
+  // NOTICE: There is NO useEffect here anymore! The map creation is safely handled in unimap.tsx.
 
   const handleSwap = () => {
-    let fromInput = document.getElementById("from-input")as HTMLInputElement;
-    let toInput = document.getElementById("to-input")as HTMLInputElement;
-    let oldfrom = fromInput.value ;
+    const fromInput = document.getElementById("from-input") as HTMLSelectElement;
+    const toInput = document.getElementById("to-input") as HTMLSelectElement;
+    const oldfrom = fromInput.value;
     fromInput.value = toInput.value;
     toInput.value = oldfrom;
-    // setFromLocation(toLocation);
-    // setToLocation(fromLocation);
+	setFromLocation(fromInput.value);
+	setToLocation(toInput.value);
+	fromInput.dispatchEvent(new Event("change",{bubbles: true}));
   };
-
-  const findOptimalRoute = (e: React.FormEvent) => {
+  const routeLayerRef = useRef<L.GeoJSON | null>(null);
+  const findOptimalRoute = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSearching(true);
-    const start = [fromLocation?.lat, fromLocation?.lng];
-    const end = [toLocation?.lat, toLocation?.lng];
+    
+    if (!map || !fromLocation || !toLocation) {
+      setIsSearching(false);
+      return; 
+    }
+
+    const start = [fromLocation.lat, fromLocation.lng];
+    const end = [toLocation.lat, toLocation.lng];
 
     const url =
       `https://router.project-osrm.org/route/v1/driving/` +
       `${start[1]},${start[0]};${end[1]},${end[0]}` +
       `?overview=full&geometries=geojson`;
 
-    fetch(url)
-      .then(response => response.json())
-      .then(data => {
-        if (data.code !== "Ok") {
-          throw new Error("Route not found");
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
 
-        }
-        // Get shortest route
-        const route = data.routes[0];
+      if (data.code !== "Ok") throw new Error("Route not found");
 
-        //Draw the route on leaflet
-        L.geoJSON(route.geometry, {
-          style: {
-            color: "red",
-            weight: 6,
-            opacity: 0.8
-          }
-        }).addTo(map);
-      })
-
-
-
+      const route = data.routes[0];
+      
+      const L = (await import("leaflet")).default;
+	  if(routeLayerRef.current){
+		map.removeLayer(routeLayerRef.current);
+	  }
+      routeLayerRef.current = L.geoJSON(route.geometry, {
+        style: { color: "red", weight: 6, opacity: 0.8 }
+      }).addTo(map);
+	  setDistance(route.distance);
+      console.log("Distance:", route.distance / 1000, "km");
+      console.log("Duration:", route.duration / 60, "minutes");
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsSearching(false);
+    }
   }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSearching(true);
-    setTimeout(() => {
-      setIsSearching(false);
-    }, 600);
+    setTimeout(() => setIsSearching(false), 600);
   };
 
   return (
-    <div id="main-container" className="flex flex-col h-screen overflow-hidden bg-[#f8fafc] text-[#1e293b]">
-      {/* 1. Persistent Header Component (Professional Polish Theme) */}
+    <div id="main-container" className="flex flex-col h-screen overflow-hidden bg-[#f8fafc] text-[#1e293b] ">
       <Header />
-
-      {/* 2. Main Content Area (Two-Pane Responsive Layout) */}
       <main id="main-content" className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-scroll">
-        {/* Left Pane: Route Controls & Inputs */}
-        <section
-          id="left-pane"
-          className="w-full md:w-1/2 p-6 md:p-12 flex flex-col justify-between  bg-white border-b md:border-b-0 md:border-r border-[#e2e8f0]"
-        >
+        
+        <section id="left-pane" className="w-full md:w-1/2 p-6 md:p-12 flex flex-col justify-between bg-white border-b md:border-b-0 md:border-r border-[#e2e8f0]">
           <div className="max-w-[420px] w-full mx-auto my-auto space-y-6">
             <div>
               <h1 className="text-2xl md:text-3xl font-extrabold text-[#0f172a] tracking-tight flex items-center gap-2.5">
@@ -108,7 +101,6 @@ export default function Home() {
             </div>
 
             <form onSubmit={handleSearch} className="space-y-5">
-              {/* "From" Input */}
               <div className="space-y-2">
                 <label htmlFor="from-input" className="block text-xs font-bold uppercase tracking-wider text-slate-600">
                   From
@@ -117,24 +109,14 @@ export default function Home() {
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#003366]">
                     <MapPin className="w-5 h-5" />
                   </div>
-                  {/*<input
-                    id="from-input"
-                    type="text"
-                    value={fromLocation}
-                    onChange={(e) => setFromLocation(e.target.value)}
-                    placeholder="Starting Point (e.g., Main Gate, Senate Building)"
-                    className="w-full h-[52px] pl-11 pr-4 bg-[#fcfcfc] border-2 border-[#e2e8f0] rounded-xl text-slate-900 placeholder:text-slate-400 text-sm font-medium focus:outline-none focus:border-[#003366] focus:ring-4 focus:ring-[#003366]/10 transition-all duration-200"
-                  />*/}
                   <select className="w-full h-[52px] pl-11 pr-4 bg-[#fcfcfc] border-2 border-[#e2e8f0] rounded-xl text-slate-900 placeholder:text-slate-400 text-sm font-medium focus:outline-none focus:border-[#003366] focus:ring-4 focus:ring-[#003366]/10 transition-all duration-200"
-                    id="from-input"
+                    id="from-input" defaultValue="disabled"
                   >
-                    <option value="" disabled selected>Loading...</option>
-
+                    <option value="disabled" disabled>Loading...</option>
                   </select>
                 </div>
               </div>
 
-              {/* Swap Locations Button */}
               <div className="flex justify-center -my-1">
                 <button
                   type="button"
@@ -146,7 +128,6 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* "To" Input */}
               <div className="space-y-2">
                 <label htmlFor="to-input" className="block text-xs font-bold uppercase tracking-wider text-slate-600">
                   To
@@ -155,28 +136,18 @@ export default function Home() {
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#facc15] filter drop-shadow-xs">
                     <MapPin className="w-5 h-5 fill-[#003366]" />
                   </div>
-                  {/*<input
-                    id="to-input"
-                    type="text"
-                    value={toLocation}
-                    onChange={(e) => setToLocation(e.target.value)}
-                    placeholder="Destination (e.g., Faculty of Arts, Moremi Hall)"
-                    className="w-full h-[52px] pl-11 pr-4 bg-[#fcfcfc] border-2 border-[#e2e8f0] rounded-xl text-slate-900 placeholder:text-slate-400 text-sm font-medium focus:outline-none focus:border-[#003366] focus:ring-4 focus:ring-[#003366]/10 transition-all duration-200"
-                  />*/}
                   <select className="w-full h-[52px] pl-11 pr-4 bg-[#fcfcfc] border-2 border-[#e2e8f0] rounded-xl text-slate-900 placeholder:text-slate-400 text-sm font-medium focus:outline-none focus:border-[#003366] focus:ring-4 focus:ring-[#003366]/10 transition-all duration-200"
-                    id="to-input"
+                    id="to-input" defaultValue="disabled"
                   >
-                    <option value="" disabled selected>Loading...</option>
-
+                    <option value="disabled" disabled>Loading...</option>
                   </select>
                 </div>
               </div>
 
-              {/* Action Button */}
               <div className="pt-2">
                 <button
                   id="find-route-btn"
-                  type="submit"
+                  type="button"
                   disabled={isSearching}
                   className="w-full h-[56px] inline-flex items-center justify-center gap-2 px-6 bg-[#003366] hover:bg-[#002244] active:bg-[#001830] text-white font-bold text-base rounded-xl shadow-md shadow-[#003366]/20 transition-all duration-200 cursor-pointer disabled:opacity-75"
                   onClick={findOptimalRoute}
@@ -186,22 +157,20 @@ export default function Home() {
                 </button>
               </div>
             </form>
+			<div className="flex">
+			{ distance && 
+						<div
+				className="ml-auto"
+			>Distance: {distance}m</div>}
+			</div>
 
           </div>
         </section>
 
-        {/* Right Pane: Map Area with Subtle Radial Grid & Glass Tag Placeholder */}
-        <section
-          id="right-pane"
-          className="w-full md:w-1/2 min-h-[450px] md:min-h-0 bg-[#f1f5f9] flex items-center justify-center relative p-4 border-t md:border-t-0 md:border-l border-[#e2e8f0]"
-        >
-
-            <Unimap />
-
+        <section id="right-pane" className="w-full md:w-1/2 min-h-[450px] md:min-h-0 bg-[#f1f5f9] flex items-center justify-center relative p-4 border-t md:border-t-0 md:border-l border-[#e2e8f0]">
+          <Unimap /> 
         </section>
       </main>
-
-      {/* 3. Persistent Global Footer */}
       <Footer />
     </div>
   );

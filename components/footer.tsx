@@ -11,7 +11,7 @@ export default function Footer() {
           <div className="flex items-center gap-2">
             {/* LinkedIn */}
             <a
-              href="https://linkedin.com"
+              href="https://linkedin.com/in/oluwafemi-idowu-ayomide"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="LinkedIn Profile"
@@ -24,7 +24,7 @@ export default function Footer() {
 
             {/* X (formerly Twitter) */}
             <a
-              href="https://x.com"
+              href="https://x.com/Femi__idowu"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="X (Twitter) Profile"
@@ -37,7 +37,7 @@ export default function Footer() {
 
             {/* Instagram */}
             <a
-              href="https://instagram.com"
+              href="https://www.instagram.com/femiidowu285"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram Profile"
