@@ -6,10 +6,11 @@ import { useInputContext } from "@/context/InputContext";
 import { useMap } from "@/context/MapContext";
 import data from "components/data.json"; // Verify this path for your project
 import icon from 'leaflet/dist/images/marker-icon.png';
+import iconRetina from 'leaflet/dist/images/marker-icon-2x.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({ iconUrl: icon.src, shadowUrl: iconShadow.src });
+L.Icon.Default.mergeOptions({ iconUrl: icon.src, iconRetinaUrl: iconRetina.src, shadowUrl: iconShadow.src });
 
 export interface LocationType {
   name: string,
