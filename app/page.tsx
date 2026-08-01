@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { MapPin, Navigation, Search, ArrowUpDown } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import data from "components/data.json";
 
 // 1. DYNAMICALLY IMPORT THE MAP (Disables SSR for this component)
 const Unimap = dynamic(() => import('@/components/unimap'), { 
@@ -30,8 +31,11 @@ export default function Home() {
     const oldfrom = fromInput.value;
     fromInput.value = toInput.value;
     toInput.value = oldfrom;
-	setFromLocation(fromInput.value);
-	setToLocation(toInput.value);
+	const fromObject = data.find(loc=>loc.name===fromInput.value);
+	const toObject = data.find(loc=> loc.name===toInput.value);
+	
+	setFromLocation(fromObject);
+	setToLocation(toObject);
 	fromInput.dispatchEvent(new Event("change",{bubbles: true}));
   };
   const routeLayerRef = useRef<L.GeoJSON | null>(null);
@@ -48,7 +52,7 @@ export default function Home() {
     const end = [toLocation.lat, toLocation.lng];
 
     const url =
-      `https://router.project-osrm.org/route/v1/driving/` +
+      `https://router.project-osrm.org/route/v1/foot/` +
       `${start[1]},${start[0]};${end[1]},${end[0]}` +
       `?overview=full&geometries=geojson`;
 
